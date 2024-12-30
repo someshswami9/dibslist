@@ -32,37 +32,41 @@ class MediaControllerManager {
       final url = entry.value;
 
       if (_videoControllers.containsKey(url)) {
+        continue;
       } else if (_preloadingSet.contains(url)) {
+        continue;
       } else {
-        print("[CACHE] Initializing video at index $index");
-        await _initializeVideo(url);
-        print("[CACHE] Video at index $index has been initialized");
+
+        await _initializeVideo(url, index);
       }
     }
   }
 
-  Future<void> _initializeVideo(String url) async {
+  Future<void> _initializeVideo(String url, int? index) async {
     if (_videoControllers.containsKey(url) || _preloadingSet.contains(url)) {
+      print("[CACHE] Initializing video at index $index but contains key already");
       return;
     }
 
-    _preloadingSet.add(url);
+
     try {
+      print("[CACHE] Initializing video at index $index");
       final controller = VideoPlayerController.networkUrl(Uri.parse(url));
       await controller.initialize();
 
       _videoControllers[url] = _CachedVideoController(controller);
       _accessOrder.add(url);
-
-      _updateCacheStatus('[CACHE] Initialized');
+      _preloadingSet.add(url);
+      _updateCacheStatus('Initialized at index $index');
+      print("[cache] video controller list has been ${_videoControllers.length}");
     } catch (e) {
-      print('[CACHE] Error initializing video $url: $e');
+      print('[CACHE] Error initializing video  at index $index message $e');
     } finally {
       _preloadingSet.remove(url);
     }
   }
 
-  Future<VideoPlayerController> getVideoController(String url) async {
+  Future<VideoPlayerController> getVideoController(String url, int index) async {
     if (_videoControllers.containsKey(url)) {
       final cached = _videoControllers[url]!;
       cached.markAccessed();
@@ -80,7 +84,8 @@ class MediaControllerManager {
     }
 
     // Initialize new controller
-    await _initializeVideo(url);
+    print("[CACHE] called initialized from get Controller at index $index");
+    await _initializeVideo(url, index);
     return _videoControllers[url]!.controller;
   }
 
@@ -141,6 +146,7 @@ class MediaControllerManager {
     final index = preloadData.indexOf(url);
     return index >= 0 ? index : -1; // Return -1 if index not found
   }
+
   void _updateCacheStatus(String action) {
     print(
         '[CACHE] $action - Current cache size: ${_videoControllers.length}/$maxCacheSize');

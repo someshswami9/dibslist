@@ -45,8 +45,8 @@ class _DibsListState extends State<DibsList> {
     if (!_scrollController.hasClients || (_scrollThrottleTimer?.isActive ?? false)) {
       return;
     }
-
-    _scrollThrottleTimer = Timer(const Duration(milliseconds: 300), () {
+    _scrollThrottleTimer?.cancel();
+    _scrollThrottleTimer = Timer(const Duration(milliseconds: 100), () {
       final visibleRange = _getVisibleItemRange();
       if (visibleRange != null) {
         _preloadVideosInRange(visibleRange.start, visibleRange.end);
@@ -54,26 +54,26 @@ class _DibsListState extends State<DibsList> {
     });
   }
 
+  final Set<int> preloadedIndices = {};
+
   void _preloadVideosInRange(int startIndex, int endIndex) {
     final items = _pagingController.itemList;
     if (items == null || items.isEmpty) return;
 
-    final preloadData = <MapEntry<int, String>>[];
-    const preloadWindow = 3; // Adjust this value based on your needs
+    const preloadWindow = 3;
 
-    // Include both forward and backward preloading
     for (int i = max(0, startIndex - preloadWindow);
     i <= min(items.length - 1, endIndex + preloadWindow);
     i++) {
       final item = items[i];
-      if (item.dataType?.toLowerCase() == 'video' && item.dibbedUrl.isNotEmpty) {
-        preloadData.add(MapEntry(i, item.dibbedUrl));
+      if (item.dataType?.toLowerCase() == 'video' &&
+          item.dibbedUrl.isNotEmpty &&
+          !preloadedIndices.contains(i)) {
+        preloadedIndices.add(i);
+        _mediaManager.preInitializeVideos([MapEntry(i, item.dibbedUrl)]);
       }
     }
-
-    if (preloadData.isNotEmpty) {
-      _mediaManager.preInitializeVideos(preloadData);
-    }
+    // print("[CACHE] indices has been $preloadedIndices");
   }
 
   Range? _getVisibleItemRange() {
@@ -129,7 +129,6 @@ class _DibsListState extends State<DibsList> {
                 child: PagedListView<int, Creative>(
                   scrollController: _scrollController,
                   pagingController: _pagingController,
-                  physics: SlowScrollPhysics(),
                   builderDelegate: PagedChildBuilderDelegate<Creative>(
                     itemBuilder: (context, creative, index) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -137,7 +136,7 @@ class _DibsListState extends State<DibsList> {
                         creative: creative,
                         onLike: () {},
                         onComment: () {},
-                        onShare: () {},
+                        onShare: () {}, index: index,
                       ),
                     ),
                   ),
@@ -158,48 +157,4 @@ class Range {
   Range(this.start, this.end);
 }
 
-class SlowScrollPhysics extends ScrollPhysics {
-  const SlowScrollPhysics({ScrollPhysics? parent}) : super(parent: parent);
-
-  @override
-  SlowScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return SlowScrollPhysics(parent: buildParent(ancestor));
-  }
-
-  @override
-  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
-    final simulation = super.createBallisticSimulation(position, velocity);
-    if (simulation == null) return null;
-
-    return _SlowedSimulation(simulation, slowdownFactor: 0.5);
-  }
-}
-
-class _SlowedSimulation extends Simulation {
-  final Simulation _original;
-  final double slowdownFactor;
-
-  _SlowedSimulation(this._original, {required this.slowdownFactor});
-
-  @override
-  double dx(double time) {
-    return _original.dx(time) * slowdownFactor;
-  }
-
-  @override
-  bool isDone(double time) {
-    return _original.isDone(time);
-  }
-
-  @override
-  double x(double time) {
-    return _original.x(time);
-  }
-
-  @override
-  double get minTime => 0.0; // Correct: Provide a default value
-
-  @override
-  double get maxTime => double.infinity; // Correct: Provide a default value
-}
 

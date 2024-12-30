@@ -15,13 +15,14 @@ class DibsicalListItem extends StatefulWidget {
   final VoidCallback? onLike;
   final VoidCallback? onComment;
   final VoidCallback? onShare;
+  final int index;
 
   const DibsicalListItem({
     Key? key,
     required this.creative,
     this.onLike,
     this.onComment,
-    this.onShare,
+    this.onShare, required this.index,
   }) : super(key: key);
 
   @override
@@ -95,7 +96,7 @@ class _DibsicalListItemState extends State<DibsicalListItem> with WidgetsBinding
 
   Widget _buildVideoPlayer(String url) {
     return FutureBuilder<VideoPlayerController>(
-      future: _mediaManager.getVideoController(url),
+      future: _mediaManager.getVideoController(url, widget.index),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _buildErrorWidget(snapshot.error.toString());
@@ -110,7 +111,6 @@ class _DibsicalListItemState extends State<DibsicalListItem> with WidgetsBinding
           _isInitialized = true;
           _chewieController = ChewieController(
             videoPlayerController: _videoController!,
-            autoPlay: _isVisible && _mediaManager.isCurrentlyPlaying(widget.creative.id),
             looping: false,
             aspectRatio: _videoController!.value.aspectRatio,
             allowedScreenSleep: false,
@@ -124,13 +124,6 @@ class _DibsicalListItemState extends State<DibsicalListItem> with WidgetsBinding
     );
   }
 
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
-  }
 
   Widget _buildImage(String url) {
     return ExtendedImage.network(
