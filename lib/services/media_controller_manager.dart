@@ -24,44 +24,19 @@ class MediaControllerManager {
       ? _maxCacheIos
       : _maxCacheAndroid;
 
-  Future<void> preInitializeVideos(List<String> urls) async {
-    if (urls.isEmpty) return;
+  Future<void> preInitializeVideos(List<MapEntry<int, String>> preloadData) async {
+    if (preloadData.isEmpty) return;
 
-    print('[CACHE] Starting pre-initialization for ${urls.length} videos');
-    print(
-        '[CACHE] Current cache size: ${_videoControllers.length}/$maxCacheSize');
+    for (final entry in preloadData) {
+      final index = entry.key;
+      final url = entry.value;
 
-    // Sort URLs by priority (visible ones first, then non-cached ones)
-    final prioritizedUrls = urls
-        .where((url) =>
-            !_videoControllers.containsKey(url) &&
-            !_preloadingSet.contains(url))
-        .toList();
-
-    if (prioritizedUrls.isEmpty) {
-      print('[CACHE] All URLs are already cached or being processed');
-      return;
-    }
-
-    // Remove least recently used controllers if needed
-    while (_videoControllers.length + prioritizedUrls.length > maxCacheSize) {
-      await _removeLeastRecentlyUsed();
-    }
-
-    // Initialize new controllers in parallel
-    final futures = <Future<void>>[];
-    for (final url in prioritizedUrls) {
-      if (_videoControllers.length >= maxCacheSize) break;
-      futures.add(_initializeVideo(url));
-    }
-
-    if (futures.isNotEmpty) {
-      print('[CACHE] Initializing ${futures.length} new videos');
-      try {
-        await Future.wait(futures);
-        print('[CACHE] Successfully initialized ${futures.length} videos');
-      } catch (e) {
-        print('[CACHE] Error during initialization: $e');
+      if (_videoControllers.containsKey(url)) {
+      } else if (_preloadingSet.contains(url)) {
+      } else {
+        print("[CACHE] Initializing video at index $index");
+        await _initializeVideo(url);
+        print("[CACHE] Video at index $index has been initialized");
       }
     }
   }
@@ -79,8 +54,7 @@ class MediaControllerManager {
       _videoControllers[url] = _CachedVideoController(controller);
       _accessOrder.add(url);
 
-      print('[CACHE] Successfully initialized video: $url');
-      _updateCacheStatus('Initialize');
+      _updateCacheStatus('[CACHE] Initialized');
     } catch (e) {
       print('[CACHE] Error initializing video $url: $e');
     } finally {
@@ -113,7 +87,6 @@ class MediaControllerManager {
   Future<void> _removeLeastRecentlyUsed() async {
     if (_accessOrder.isEmpty) return;
 
-    // Find the least recently used non-visible controller
     String? urlToRemove;
     for (final url in _accessOrder) {
       final cached = _videoControllers[url];
@@ -124,9 +97,10 @@ class MediaControllerManager {
     }
 
     if (urlToRemove != null) {
+      final index = _getVideoIndex(urlToRemove);
+      print('[CACHE] Removing least recently used video at index $index');
       await _safelyDisposeController(urlToRemove);
       _accessOrder.remove(urlToRemove);
-      print('[CACHE] Removed least recently used video: $urlToRemove');
     }
   }
 
@@ -134,11 +108,18 @@ class MediaControllerManager {
     try {
       final cached = _videoControllers.remove(url);
       if (cached != null) {
+        // Find index for logging
+        final index = _getVideoIndex(url);
+
+        print('[CACHE] Disposing video at index $index');
+
         await cached.controller.pause();
         await cached.controller.dispose();
+
+        print('[CACHE] Video at index $index has been disposed');
       }
     } catch (e) {
-      print('[CACHE] Error disposing controller for $url: $e');
+      print('[CACHE] Error disposing controller for ${url.substring(0, 10)}: $e');
     }
   }
 
@@ -154,10 +135,16 @@ class MediaControllerManager {
     }
   }
 
+  int _getVideoIndex(String url) {
+    // Assuming you have access to a global or passed mapping of indices to URLs.
+    final preloadData = _accessOrder.toList();
+    final index = preloadData.indexOf(url);
+    return index >= 0 ? index : -1; // Return -1 if index not found
+  }
   void _updateCacheStatus(String action) {
     print(
         '[CACHE] $action - Current cache size: ${_videoControllers.length}/$maxCacheSize');
-    print('[CACHE] Access order: ${_accessOrder.toList()}');
+    print('[CACHE] Access order length: ${_accessOrder.length}');
   }
 
   void clearCache() {

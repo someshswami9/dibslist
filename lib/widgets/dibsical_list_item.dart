@@ -98,7 +98,7 @@ class _DibsicalListItemState extends State<DibsicalListItem> with WidgetsBinding
       future: _mediaManager.getVideoController(url),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _buildErrorWidget('Unable to play this video format');
+          return _buildErrorWidget(snapshot.error.toString());
         }
 
         if (!snapshot.hasData) {

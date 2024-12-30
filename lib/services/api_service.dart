@@ -9,7 +9,7 @@ class ApiService {
   ApiService() : dio = Dio() {
     dio.options.baseUrl = baseUrl;
     dio.options.headers['Authorization'] =
-    'Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJzb21lc2hzd2FtaTlAZ21haWwuY29tIiwicm9sZSI6IlJPTEVfQ1JFQVRJVkUiLCJmbiI6IkJhbWF5eWEgU3dhbWkiLCJzZCI6Im15YmV0YS5kaWJzLmRlc2lnbiIsInNpZCI6IlVTTVlCRTI2MTIyNFNFOVFHRkhSNFJMVDJSQksiLCJzcCI6Ikdvb2dsZSIsImV4cCI6MTczNTIzNTkwNywiaXNzIjoiand0LnVzZ3cifQ.J5abTVClR-GlKyFBvspPa5DCHtoWr7f46jHhRsllC2yg75oN1OLOP3BxaVm54stFnULgeMZP_P5MngIqeAlIuw';}
+    'Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJzb21lc2hzd2FtaTlAZ21haWwuY29tIiwicm9sZSI6IlJPTEVfQ1JFQVRJVkUiLCJmbiI6IkJhbWF5eWEgU3dhbWkiLCJzZCI6Im15YmV0YS5kaWJzLmRlc2lnbiIsInNpZCI6IlVTTVlCRTI3MTIyNFNFN1hKVE5ITU1EOUJQUEMiLCJzcCI6Ikdvb2dsZSIsImV4cCI6MTczNTU1MzcxMiwiaXNzIjoiand0LnVzZ3cifQ.C7AhBx8HCqbZsOFlxSu72ewc9jewDo1bnNjAoysIVktuOphNFcXYKO_tNIGa5PYchhmKxspuzX8xBnMbKHdMDQ';}
     Future<List<Creative>> fetchCreatives({required int page}) async {
     try {
       print('[LOG] Making API request for page $page');
@@ -39,7 +39,7 @@ class ApiService {
         throw Exception('Failed to load creatives: ${response.statusCode}');
       }
     } on DioException catch (e) {
-      print('DioException: ${e.message}'); 
+      print('DioException: ${e.message}');
       if (CancelToken.isCancel(e)) {
         print('Request was cancelled'); 
         throw Exception('Request cancelled');

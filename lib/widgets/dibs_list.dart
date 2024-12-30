@@ -29,11 +29,6 @@ class _DibsListState extends State<DibsList> {
     super.initState();
     _pagingController.addPageRequestListener((pageKey) {
       _fetchPage(pageKey);
-      if (pageKey == 1) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _preloadVideosInRange(0, _pagingController.itemList?.length ?? 0 - 1);
-        });
-      }
     });
     _scrollController.addListener(_onScroll);
   }
@@ -63,22 +58,21 @@ class _DibsListState extends State<DibsList> {
     final items = _pagingController.itemList;
     if (items == null || items.isEmpty) return;
 
-    final preloadUrls = <String>[];
-    const preloadWindow = 3;  // Adjust this value based on your needs
+    final preloadData = <MapEntry<int, String>>[];
+    const preloadWindow = 3; // Adjust this value based on your needs
 
     // Include both forward and backward preloading
     for (int i = max(0, startIndex - preloadWindow);
     i <= min(items.length - 1, endIndex + preloadWindow);
     i++) {
       final item = items[i];
-      if (item.dataType?.toLowerCase() == 'video' &&
-          item.dibbedUrl.isNotEmpty) {
-        preloadUrls.add(item.dibbedUrl);
+      if (item.dataType?.toLowerCase() == 'video' && item.dibbedUrl.isNotEmpty) {
+        preloadData.add(MapEntry(i, item.dibbedUrl));
       }
     }
 
-    if (preloadUrls.isNotEmpty) {
-      _mediaManager.preInitializeVideos(preloadUrls);
+    if (preloadData.isNotEmpty) {
+      _mediaManager.preInitializeVideos(preloadData);
     }
   }
 
@@ -135,7 +129,7 @@ class _DibsListState extends State<DibsList> {
                 child: PagedListView<int, Creative>(
                   scrollController: _scrollController,
                   pagingController: _pagingController,
-                  physics: const BouncingScrollPhysics(),
+                  physics: SlowScrollPhysics(),
                   builderDelegate: PagedChildBuilderDelegate<Creative>(
                     itemBuilder: (context, creative, index) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -163,3 +157,49 @@ class Range {
 
   Range(this.start, this.end);
 }
+
+class SlowScrollPhysics extends ScrollPhysics {
+  const SlowScrollPhysics({ScrollPhysics? parent}) : super(parent: parent);
+
+  @override
+  SlowScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return SlowScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+    final simulation = super.createBallisticSimulation(position, velocity);
+    if (simulation == null) return null;
+
+    return _SlowedSimulation(simulation, slowdownFactor: 0.5);
+  }
+}
+
+class _SlowedSimulation extends Simulation {
+  final Simulation _original;
+  final double slowdownFactor;
+
+  _SlowedSimulation(this._original, {required this.slowdownFactor});
+
+  @override
+  double dx(double time) {
+    return _original.dx(time) * slowdownFactor;
+  }
+
+  @override
+  bool isDone(double time) {
+    return _original.isDone(time);
+  }
+
+  @override
+  double x(double time) {
+    return _original.x(time);
+  }
+
+  @override
+  double get minTime => 0.0; // Correct: Provide a default value
+
+  @override
+  double get maxTime => double.infinity; // Correct: Provide a default value
+}
+
